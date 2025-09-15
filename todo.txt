@@ -1,3 +1,0 @@
-LLM ->
-2)LIBRERIE -> NumPy, Pandas, Matplotib
-3)MACHINE LEARNING
