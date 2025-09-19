@@ -7,7 +7,8 @@
 4. [Regressione](#regressione)
 5. [Classificazione](#classificazione)
 6. [Valutazione del Modello](#valutazione-del-modello)
-7. [Matrice di Decisione Riassuntiva](#matrice-di-decisione-riassuntiva)
+7. [Gradient Boosting](#gradient-boosting)
+8. [Matrice di Decisione Riassuntiva](#matrice-di-decisione-riassuntiva)
 
 ---
 
@@ -1039,14 +1040,499 @@ scores = cross_val_score(model, X, y, cv=skf, scoring='f1_weighted')
 
 ---
 
+## Gradient Boosting
+
+### Scopo
+Il Gradient Boosting è una tecnica di ensemble learning che combina sequenzialmente modelli "deboli" (tipicamente alberi di decisione) per creare un modello "forte". Ogni nuovo modello viene addestrato per correggere gli errori dei modelli precedenti.
+
+### Come Funziona
+1. Si inizia con un modello semplice (spesso la media per regressione)
+2. Si calcola l'errore residuo (differenza tra predizione e valore reale)
+3. Si addestra un nuovo modello per predire questi residui
+4. Si aggiunge il nuovo modello al modello esistente
+5. Si ripete fino a convergenza o numero massimo di iterazioni
+
+### Quando Usare Gradient Boosting
+- Necessaria alta accuratezza predittiva
+- Dati strutturati/tabulari
+- Dataset di medie-grandi dimensioni
+- Competizioni di machine learning
+- Quando Random Forest non è sufficiente
+- Problemi di classificazione e regressione complessi
+
+### Vantaggi Generali
+- Eccellenti performance predittive
+- Gestisce bene overfitting con regolarizzazione
+- Funziona con feature miste (numeriche e categoriche)
+- Robusto agli outlier
+- Fornisce importanza delle feature
+
+### Svantaggi Generali
+- Computazionalmente intensivo
+- Molti iperparametri da tuning
+- Meno interpretabile di modelli semplici
+- Può overfittare se mal configurato
+- Sensibile al rumore nei dati
+
+---
+
+### Algoritmi di Gradient Boosting
+
+#### GradientBoostingClassifier/Regressor (Scikit-Learn)
+
+**Quando usare:**
+- Prototipazione e apprendimento
+- Dataset piccoli-medi
+- Quando serve interpretabilità del processo
+- Baseline per confronti
+
+**Vantaggi:**
+- Incluso in scikit-learn (nessuna installazione aggiuntiva)
+- Buona documentazione e integrazione
+- Perfetto per apprendimento
+
+**Svantaggi:**
+- Più lento rispetto ad altre implementazioni
+- Meno ottimizzato per performance
+- Limitato in termini di funzionalità avanzate
+
+**Codice Classificazione:**
+```python
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.model_selection import cross_val_score
+from sklearn.datasets import make_classification
+
+# Dataset sintetico
+X, y = make_classification(n_samples=1000, n_features=10, n_informative=5, n_redundant=5, random_state=1)
+
+# Modello
+sgb = GradientBoostingClassifier()
+
+# Cross-validation
+scores = cross_val_score(sgb, X, y, scoring='accuracy', cv=10, n_jobs=-1)
+print(f'Accuracy media: {np.mean(scores):.3f}, std: {np.std(scores):.3f}')
+
+# Fit e predizione
+sgb.fit(X, y)
+row = [[2.56999479, -0.13019997, 3.16075093, -4.35936352, -1.61271951, 
+        -1.39352057, -2.48924933, -1.93094078, 3.26130366, 2.05692145]]
+yhat = sgb.predict(row)
+print(f'Predizione: {yhat[0]}')
+```
+
+**Codice Regressione:**
+```python
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.datasets import make_regression
+
+# Dataset sintetico
+X, y = make_regression(n_samples=1000, n_features=10, n_informative=5, random_state=1)
+
+# Modello
+sgb = GradientBoostingRegressor()
+
+# Cross-validation
+scores = cross_val_score(sgb, X, y, scoring='neg_mean_absolute_error', cv=10, n_jobs=-1)
+print(f'Neg MAE media: {np.mean(scores):.3f}, std: {np.std(scores):.3f}')
+
+# Fit e predizione
+sgb.fit(X, y)
+row = [[2.02220122, 0.31563495, 0.82797464, -0.30620401, 0.16003707, 
+        -1.44411381, 0.87616892, -0.50446586, 0.23009474, 0.76201118]]
+yhat = sgb.predict(row)
+print(f'Predizione: {yhat[0]:.3f}')
+```
+
+#### HistGradientBoostingClassifier/Regressor (Scikit-Learn)
+
+**Quando usare:**
+- Alternative più veloce ai GradientBoosting standard
+- Dataset grandi
+- Quando serve integrazione con scikit-learn ma con migliori performance
+
+**Vantaggi:**
+- Più veloce del GradientBoosting standard
+- Discretizzazione automatica in istogrammi
+- Gestisce meglio feature categoriche
+- Integrato in scikit-learn
+
+**Svantaggi:**
+- Meno controllo fine rispetto a XGBoost/LightGBM
+- Relativamente nuovo
+- Meno opzioni di personalizzazione
+
+**Come funziona:**
+Discretizza le feature continue in istogrammi (es. 255 bucket), rendendo la ricerca degli split più efficiente.
+
+**Codice:**
+```python
+from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
+
+# Classificazione
+model = HistGradientBoostingClassifier()
+scores = cross_val_score(model, X, y, scoring='accuracy', cv=10, n_jobs=-1)
+print(f'Accuracy media: {np.mean(scores):.3f}, std: {np.std(scores):.3f}')
+
+# Regressione
+model_reg = HistGradientBoostingRegressor()
+scores_reg = cross_val_score(model_reg, X, y, scoring='neg_mean_absolute_error', cv=10, n_jobs=-1)
+print(f'Neg MAE media: {np.mean(scores_reg):.3f}, std: {np.std(scores_reg):.3f}')
+```
+
+#### XGBoost (eXtreme Gradient Boosting)
+
+**Quando usare:**
+- Massima performance su dati strutturati
+- Competizioni di machine learning
+- Produzione con dataset grandi
+- Quando serve il meglio in termini di accuratezza
+
+**Vantaggi:**
+- Eccellenti performance
+- Altamente ottimizzato
+- Supporto GPU
+- Regolarizzazione avanzata
+- Gestione automatica valori mancanti
+- Parallelizzazione efficiente
+
+**Svantaggi:**
+- Molti iperparametri
+- Richiede tuning estensivo
+- Può overfittare facilmente
+- Installazione aggiuntiva necessaria
+
+**Caratteristiche Uniche:**
+- Regolarizzazione L1 e L2 integrate
+- Tree pruning intelligente
+- Supporto per objective functions personalizzate
+- Excellent per problemi di ranking
+
+**Codice Classificazione:**
+```python
+from xgboost import XGBClassifier
+from sklearn.model_selection import RandomizedSearchCV
+
+# Griglia parametri
+parameter_grid = {
+    'n_estimators': [100, 200, 300, 400, 500],
+    'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
+    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2], 
+    'subsample': [0.6, 0.8, 1.0],
+    'colsample_bytree': [0.6, 0.8, 1.0],
+    'gamma': [0, 0.1, 0.3, 0.5, 1],
+    'reg_alpha': [0, 0.01, 0.1, 1],
+    'reg_lambda': [0.1, 1, 10]
+}
+
+X, y = make_classification(n_samples=1000, n_features=10, n_informative=5, n_redundant=5, random_state=1)
+model = XGBClassifier()
+
+# Randomized search per ottimizzazione
+random_search = RandomizedSearchCV(
+    estimator=model,
+    param_distributions=parameter_grid,
+    cv=5,
+    n_iter=30,
+    scoring='f1', 
+    n_jobs=-1
+)
+
+random_search.fit(X, y)
+scores = cross_val_score(random_search.best_estimator_, X, y, scoring='accuracy', cv=10, n_jobs=-1)
+print(f'Accuracy media: {np.mean(scores):.3f}, std: {np.std(scores):.3f}')
+
+# Predizione
+row = [[2.56999479, -0.13019997, 3.16075093, -4.35936352, -1.61271951, 
+        -1.39352057, -2.48924933, -1.93094078, 3.26130366, 2.05692145]]
+yhat = random_search.best_estimator_.predict(row)
+print(f'Predizione: {yhat[0]}')
+```
+
+**Codice Regressione:**
+```python
+from xgboost import XGBRegressor
+
+parameter_grid = {
+    'n_estimators': [100, 200, 300, 400, 500],
+    'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
+    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2], 
+    'subsample': [0.6, 0.8, 1.0],
+    'colsample_bytree': [0.6, 0.8, 1.0],
+    'reg_alpha': [0, 0.01, 0.1, 1],
+    'reg_lambda': [0.1, 1, 10]
+}
+
+X, y = make_regression(n_samples=1000, n_features=10, n_informative=5, random_state=1)
+model = XGBRegressor(objective='reg:squarederror')
+
+random_search = RandomizedSearchCV(
+    estimator=model,
+    param_distributions=parameter_grid, 
+    cv=5, 
+    n_iter=30, 
+    scoring='neg_mean_absolute_error',
+    n_jobs=-1
+)
+
+random_search.fit(X, y)
+scores = cross_val_score(random_search.best_estimator_, X, y, scoring='neg_mean_absolute_error', cv=10, n_jobs=-1)
+print(f'Neg MAE: {np.mean(scores):.3f}, std: {np.std(scores):.3f}')
+
+# Predizione
+row = [2.02220122, 0.31563495, 0.82797464, -0.30620401, 0.16003707, 
+       -1.44411381, 0.87616892, -0.50446586, 0.23009474, 0.76201118]
+row = np.asarray(row).reshape((1, len(row)))
+yhat = random_search.best_estimator_.predict(row)
+print(f'Predizione: {yhat[0]}')
+```
+
+#### LightGBM (Light Gradient Boosting Machine)
+
+**Quando usare:**
+- Dataset molto grandi
+- Memoria limitata
+- Quando serve velocità di training
+- Problemi con molte feature
+
+**Vantaggi:**
+- Molto veloce su dataset grandi
+- Uso efficiente della memoria
+- Leaf-wise tree growth (più efficiente)
+- Ottima gestione feature categoriche
+- Supporto GPU eccellente
+
+**Svantaggi:**
+- Può overfittare su dataset piccoli
+- Leaf-wise growth può essere instabile
+- Meno stabile di XGBoost su alcuni problemi
+
+**Caratteristiche Uniche:**
+- Crescita leaf-wise invece di level-wise
+- Gestione nativa di feature categoriche
+- Ottimizzazione per velocità estrema
+- Network communication per distributed training
+
+**Codice Classificazione:**
+```python
+from lightgbm import LGBMClassifier
+import pandas as pd
+
+parameter_grid = {
+    'n_estimators': [100, 200, 300, 400, 500],
+    'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
+    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2], 
+    'subsample': [0.6, 0.8, 1.0],
+    'colsample_bytree': [0.6, 0.8, 1.0],
+    'reg_alpha': [0, 0.01, 0.1, 1],
+    'reg_lambda': [0.1, 1, 10]
+}
+
+X, y = make_classification(n_samples=1000, n_features=10, n_informative=5, n_redundant=5, random_state=1)
+model = LGBMClassifier()
+
+random_search = RandomizedSearchCV(
+    estimator=model,
+    param_distributions=parameter_grid,
+    cv=5,
+    n_iter=30,
+    scoring='f1', 
+    n_jobs=-1
+)
+
+random_search.fit(X, y)
+scores = cross_val_score(random_search.best_estimator_, X, y, scoring='accuracy', cv=10, n_jobs=-1)
+print(f'Accuracy media: {np.mean(scores):.3f}, std: {np.std(scores):.3f}')
+
+# Predizione con DataFrame (importante per LightGBM)
+row = [2.56999479, -0.13019997, 3.16075093, -4.35936352, -1.61271951, 
+       -1.39352057, -2.48924933, -1.93094078, 3.26130366, 2.05692145]
+rows = pd.DataFrame([row], columns=[f'feature{i}' for i in range(len(row))])
+yhat = random_search.best_estimator_.predict(rows)
+print(f'Predizione: {yhat[0]}')
+```
+
+**Codice Regressione:**
+```python
+from lightgbm import LGBMRegressor
+
+parameter_grid = {
+    'n_estimators': [100, 200, 300, 400, 500],
+    'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
+    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2],
+    'subsample': [0.6, 0.8, 1.0],
+    'colsample_bytree': [0.6, 0.8, 1.0],
+    'reg_alpha': [0, 0.01, 0.1, 1],
+    'reg_lambda': [0.1, 1, 10]
+}
+
+X, y = make_regression(n_samples=1000, n_features=10, n_informative=5, random_state=1)
+model = LGBMRegressor()
+
+random_search = RandomizedSearchCV(
+    estimator=model, 
+    param_distributions=parameter_grid, 
+    n_jobs=-1, 
+    n_iter=30, 
+    cv=5, 
+    scoring='neg_mean_absolute_error'
+)
+
+random_search.fit(X, y)
+scores = cross_val_score(random_search.best_estimator_, X, y, scoring='neg_mean_absolute_error', cv=10, n_jobs=-1)
+print(f'Neg MAE: {np.mean(scores):.3f}, std: {np.std(scores):.3f}')
+
+# Predizione
+row = [2.02220122, 0.31563495, 0.82797464, -0.30620401, 0.16003707, 
+       -1.44411381, 0.87616892, -0.50446586, 0.23009474, 0.76201118]
+rows = pd.DataFrame([row], columns=[f'feature {i}' for i in range(len(row))])
+yhat = random_search.best_estimator_.predict(rows)
+print(f'Predizione: {yhat[0]}')
+```
+
+#### CatBoost
+
+**Quando usare:**
+- Molte feature categoriche
+- Vuoi ridurre feature engineering
+- Dataset con categorical features ad alta cardinalità
+- Quando serve un modello robusto out-of-the-box
+
+**Vantaggi:**
+- Gestione eccellente di feature categoriche
+- Meno preprocessing necessario
+- Robusto contro overfitting
+- Configurazione automatica intelligente
+- Ottima gestione missing values
+
+**Svantaggi:**
+- Più lento di LightGBM
+- Meno controllo fine rispetto a XGBoost
+- Installazione aggiuntiva necessaria
+- Documentazione meno estesa
+
+**Caratteristiche Uniche:**
+- Ordered boosting per evitare target leakage
+- Gestione automatica feature categoriche
+- Built-in regularization techniques
+- Symmetric trees per performance
+
+**Codice Classificazione:**
+```python
+from catboost import CatBoostClassifier
+
+parameter_grid = {
+    'n_estimators': [100, 200, 300, 400, 500],
+    'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
+    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2], 
+    'subsample': [0.6, 0.8, 1.0],
+    'reg_lambda': [0.1, 1, 10]
+}
+
+X, y = make_classification(n_samples=1000, n_features=10, n_informative=5, n_redundant=5, random_state=1)
+model = CatBoostClassifier(verbose=False)  # verbose=False per silenziare output
+
+random_search = RandomizedSearchCV(
+    estimator=model,
+    param_distributions=parameter_grid,
+    cv=5,
+    n_iter=30,
+    scoring='f1', 
+    n_jobs=-1
+)
+
+random_search.fit(X, y)
+scores = cross_val_score(random_search.best_estimator_, X, y, scoring='accuracy', cv=10, n_jobs=-1)
+print(f'Accuracy media: {np.mean(scores):.3f}, std: {np.std(scores):.3f}')
+
+# Predizione
+row = [2.56999479, -0.13019997, 3.16075093, -4.35936352, -1.61271951, 
+       -1.39352057, -2.48924933, -1.93094078, 3.26130366, 2.05692145]
+rows = pd.DataFrame([row], columns=[f'feature{i}' for i in range(len(row))])
+yhat = random_search.best_estimator_.predict(rows)
+print(f'Predizione: {yhat[0]}')
+```
+
+**Codice Regressione:**
+```python
+from catboost import CatBoostRegressor
+
+X, y = make_regression(n_samples=1000, n_features=10, n_informative=5, random_state=1)
+model = CatBoostRegressor(verbose=False)
+
+parameter_grid = {
+    'n_estimators': [100, 200, 300, 400, 500],
+    'max_depth': [3, 4, 5, 6, 7, 8, 9, 10],
+    'learning_rate': [0.001, 0.01, 0.05, 0.1, 0.2], 
+    'subsample': [0.6, 0.8, 1.0],
+    'reg_lambda': [0.1, 1, 10]
+}
+
+random_search = RandomizedSearchCV(
+    estimator=model, 
+    param_distributions=parameter_grid, 
+    n_iter=30, 
+    n_jobs=-1, 
+    cv=5, 
+    scoring='neg_mean_absolute_error'
+)
+
+random_search.fit(X, y)
+scores = cross_val_score(random_search.best_estimator_, X, y, scoring='neg_mean_absolute_error', n_jobs=-1, cv=5)
+print(f'Neg MAE: {np.mean(scores):.3f}, std: {np.std(scores):.3f}')
+
+# Predizione
+row = [2.02220122, 0.31563495, 0.82797464, -0.30620401, 0.16003707, 
+       -1.44411381, 0.87616892, -0.50446586, 0.23009474, 0.76201118]
+rows = pd.DataFrame([row], columns=[f'feature {i}' for i in range(len(row))])
+yhat = random_search.best_estimator_.predict(rows)
+print(f'Predizione: {yhat[0]}')
+```
+
+### Comparazione degli Algoritmi di Gradient Boosting
+
+| Algoritmo | Velocità | Memoria | Feature Categoriche | Overfitting | Tuning Necessario |
+|-----------|----------|---------|-------------------|-------------|------------------|
+| **Scikit-Learn GB** | Lenta | Media | Manuale | Medio | Basso |
+| **HistGB** | Media | Bassa | Limitato | Medio | Basso |
+| **XGBoost** | Media | Media | Manuale | Alto | Alto |
+| **LightGBM** | Veloce | Bassa | Buono | Alto | Medio |
+| **CatBoost** | Medio | Media | Eccellente | Basso | Basso |
+
+### Consigli per l'Uso
+
+1. **Per iniziare**: Scikit-Learn GradientBoosting o HistGradientBoosting
+2. **Per produzione con dati strutturati**: XGBoost
+3. **Per dataset enormi**: LightGBM
+4. **Per molte feature categoriche**: CatBoost
+5. **Per competizioni**: XGBoost o LightGBM con tuning estensivo
+
+### Iperparametri Comuni
+
+**Parametri principali da tuning:**
+- `n_estimators`: Numero di alberi (100-1000+)
+- `learning_rate`: Tasso di apprendimento (0.01-0.3)
+- `max_depth`: Profondità massima alberi (3-10)
+- `subsample`: Frazione di campioni per albero (0.6-1.0)
+- `reg_alpha`, `reg_lambda`: Regolarizzazione L1 e L2
+
+**Strategia di tuning:**
+1. Inizia con parametri default
+2. Usa RandomizedSearchCV per esplorazione iniziale
+3. Affina con GridSearchCV su range ristretti
+4. Monitora overfitting con validation curves
+5. Usa early stopping quando disponibile
+
+---
+
 ## Matrice di Decisione Riassuntiva
 
 | Tipo Problema | Dimensione Dati | Necessità Interpretabilità | Necessità Accuratezza | Approccio Raccomandato |
 |---------------|-----------------|----------------------------|----------------------|------------------------|
 | **Regressione** | Piccoli | Alta | Media | Linear/Ridge/Lasso |
-| **Regressione** | Grandi | Bassa | Alta | Random Forest/XGBoost |
+| **Regressione** | Grandi | Bassa | Alta | XGBoost/LightGBM |
 | **Classificazione** | Piccoli | Alta | Media | Logistic/Decision Tree |
-| **Classificazione** | Grandi | Bassa | Alta | Random Forest/SVM |
+| **Classificazione** | Grandi | Bassa | Alta | XGBoost/LightGBM |
+| **Con Feature Categoriche** | Qualsiasi | Bassa | Alta | CatBoost |
 | **Clustering** | Qualsiasi | Alta | N/A | Gerarchico |
 | **Clustering** | Grandi | Bassa | N/A | K-Means |
 | **Esplorazione** | Qualsiasi | Alta | N/A | Visualizzazione + EDA |
@@ -1087,6 +1573,7 @@ y_pred = best_pipeline.predict(X_test)
 4. **Cross-Valida**: Valida sempre le performance del modello
 5. **Considera i Trade-off**: Bilancia accuratezza, interpretabilità e costo computazionale
 6. **Itera**: Il machine learning è un processo iterativo
+7. **Gradient Boosting per Accuratezza**: Quando serve il massimo in termini di performance
 
 ### Errori Comuni da Evitare
 
@@ -1098,3 +1585,5 @@ y_pred = best_pipeline.predict(X_test)
 - Non considerare il contesto business e le necessità di interpretabilità
 - Data leakage nel preprocessing (fare fit su tutto il dataset)
 - Non gestire il dataset sbilanciato nelle classificazioni
+- Overtuning degli iperparametri di gradient boosting
+- Non usare early stopping con gradient boosting
