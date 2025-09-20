@@ -2620,3 +2620,790 @@ y_pred = best_pipeline.predict(X_test)
 - Non gestire il dataset sbilanciato nelle classificazioni
 - Non documentare le scelte e i risultati degli esperimenti
 - Non testare su dati realmente nuovi (out-of-time validation)
+
+![alt text](image.png)
+
+
+## ALGORITMI DI CLASSIFICAZIONE
+
+### Per DataSet size
+# < 1K campioni
+✅ Regressione Logistica, SVM RBF, Naive Bayes
+
+# 1K - 100K campioni  
+✅ Random Forest, XGBoost, Decision Tree
+
+# > 100K campioni
+✅ LightGBM, SVM Linear, Regressione Logistica
+
+### Per numero di features
+# < 20 features
+✅ Qualsiasi algoritmo
+
+# 20-1000 features
+✅ Random Forest, XGBoost, SVM, Regressione Logistica
+
+# > 1000 features (alta dimensionalità)
+✅ SVM Linear, Regressione Logistica, Naive Bayes
+
+### Per interpretabilità
+# Interpretabilità MASSIMA
+✅ Regressione Logistica > Decision Tree > Naive Bayes
+
+# Interpretabilità MEDIA  
+✅ Random Forest > XGBoost > SVM
+
+# Performance > Interpretabilità
+✅ Neural Networks > Ensemble Methods
+
+### Per Velocità
+# Training VELOCE
+✅ Naive Bayes > KNN > Regressione Logistica
+
+# Predizione VELOCE
+✅ Regressione Logistica > Naive Bayes > Decision Tree
+
+# Bilanciato
+✅ Random Forest > LightGBM > XGBoost
+
+### Per Robustezza
+# Outliers FREQUENTI
+✅ Random Forest > XGBoost > Decision Tree
+
+# Dati PULITI
+✅ SVM > Regressione Logistica > Neural Networks
+
+# Missing VALUES
+✅ CatBoost > XGBoost > Random Forest
+
+Oversampling e Undersampling possono essere applicati a qualsiasi algoritmo di classificazione.
+Le metriche per la valutazione di un modello sono: F1 Score, Accuracy (misura delle predizione corrette) e matrice di confusione (mostra i falsi positivi e i falsi negativi, dove il modello sbaglia predizione).
+
+Per il confronto tra due modelli si usano:
+- Curva ROC
+- AUC
+
+BEST: modello con AUC più alto e F1 Score migliore
+
+![alt text](image-1.png)
+
+
+
+## OVERFITTING AND UNDERFITTING
+
+# 1. METODO: Confronto Train vs Validation Score
+print("=== DIAGNOSI OVERFITTING/UNDERFITTING ===\n")
+
+models_to_diagnose = {
+    'Degree 1 (Simple)': logReg,
+    'Degree 4 (Complex)': logReg1,
+    'Ridge (Regularized)': logRegRidge
+}
+
+for name, model in models_to_diagnose.items():
+    # Score su training set
+    train_score = model.score(X_train, y_train)
+    
+    # Score su test set
+    test_score = model.score(X_test, y_test)
+    
+    # Differenza
+    gap = train_score - test_score
+    
+    print(f"🔍 {name}:")
+    print(f"   Training Accuracy: {train_score:.3f}")
+    print(f"   Test Accuracy:     {test_score:.3f}")
+    print(f"   Gap (Train-Test):  {gap:.3f}")
+    
+    # Interpretazione
+    if gap > 0.1:
+        print(f"   ⚠️  OVERFITTING! Gap troppo grande")
+    elif gap > 0.05:
+        print(f"   🔶 Possibile overfitting leggero")
+    elif test_score < 0.7:
+        print(f"   🔴 UNDERFITTING! Performance troppo bassa")
+    else:
+        print(f"   ✅ Modello bilanciato")
+    print()
+
+
+    # 2. METODO: Learning Curves per visualizzare overfitting
+from sklearn.model_selection import learning_curve
+
+def plot_learning_curve(model, name, X, y):
+    """
+    Plotta learning curves per diagnosticare overfitting/underfitting
+    """
+    # Calcola learning curves
+    train_sizes, train_scores, val_scores = learning_curve(
+        model, X, y, cv=5, 
+        train_sizes=np.linspace(0.1, 1.0, 10),
+        scoring='f1'
+    )
+    
+    # Calcola medie e deviazioni standard
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    val_scores_mean = np.mean(val_scores, axis=1)
+    val_scores_std = np.std(val_scores, axis=1)
+    
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
+                     train_scores_mean + train_scores_std, alpha=0.1, color="blue")
+    plt.fill_between(train_sizes, val_scores_mean - val_scores_std,
+                     val_scores_mean + val_scores_std, alpha=0.1, color="red")
+    
+    plt.plot(train_sizes, train_scores_mean, 'o-', color="blue", label="Training F1")
+    plt.plot(train_sizes, val_scores_mean, 'o-', color="red", label="Validation F1")
+    
+    plt.xlabel('Training Set Size')
+    plt.ylabel('F1 Score')
+    plt.title(f'Learning Curve - {name}')
+    plt.legend(loc="best")
+    plt.grid(True)
+    plt.show()
+    
+    # Interpretazione automatica
+    final_gap = train_scores_mean[-1] - val_scores_mean[-1]
+    print(f"📊 {name} - Learning Curve Analysis:")
+    print(f"   Final Training F1: {train_scores_mean[-1]:.3f}")
+    print(f"   Final Validation F1: {val_scores_mean[-1]:.3f}")
+    print(f"   Final Gap: {final_gap:.3f}")
+    
+    if final_gap > 0.1:
+        print("   ⚠️ OVERFITTING: Grande gap tra training e validation")
+    elif val_scores_mean[-1] < 0.6:
+        print("   🔴 UNDERFITTING: Performance validation troppo bassa")
+    else:
+        print("   ✅ Modello ben bilanciato")
+    print()
+
+# Testa i modelli principali
+plot_learning_curve(logReg, "Degree 1 (Simple)", X_train, y_train)
+plot_learning_curve(logReg1, "Degree 4 (Complex)", X_train, y_train)
+
+
+# 3. METODO: Validation Curves per ottimizzare hyperparametri
+from sklearn.model_selection import validation_curve
+
+def diagnose_with_validation_curve():
+    """
+    Usa validation curves per trovare il grado polinomiale ottimale
+    """
+    # Test diversi gradi polinomiali
+    param_range = [1, 2, 3, 4, 5, 6]
+    
+    # Base pipeline senza grado specificato
+    base_pipeline = Pipeline([
+        ('poly', PolynomialFeatures(include_bias=False)),
+        ('logistic', LogisticRegression(max_iter=5000))
+    ])
+    
+    # Calcola validation curve
+    train_scores, val_scores = validation_curve(
+        base_pipeline, X_train, y_train,
+        param_name='poly__degree', param_range=param_range,
+        cv=5, scoring='f1'
+    )
+    
+    # Calcola medie
+    train_scores_mean = np.mean(train_scores, axis=1)
+    val_scores_mean = np.mean(val_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    val_scores_std = np.std(val_scores, axis=1)
+    
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(param_range, train_scores_mean, 'o-', color='blue', label='Training F1')
+    plt.plot(param_range, val_scores_mean, 'o-', color='red', label='Validation F1')
+    
+    plt.fill_between(param_range, train_scores_mean - train_scores_std,
+                     train_scores_mean + train_scores_std, alpha=0.1, color='blue')
+    plt.fill_between(param_range, val_scores_mean - val_scores_std,
+                     val_scores_mean + val_scores_std, alpha=0.1, color='red')
+    
+    plt.xlabel('Polynomial Degree')
+    plt.ylabel('F1 Score')
+    plt.title('Validation Curve - Polynomial Degree Optimization')
+    plt.legend(loc='best')
+    plt.grid(True)
+    plt.show()
+    
+    # Trova il grado ottimale
+    best_degree_idx = np.argmax(val_scores_mean)
+    best_degree = param_range[best_degree_idx]
+    
+    print(f"🎯 RISULTATI VALIDATION CURVE:")
+    print(f"   Grado ottimale: {best_degree}")
+    print(f"   F1 validation migliore: {val_scores_mean[best_degree_idx]:.3f}")
+    
+    # Diagnosi per ogni grado
+    for i, degree in enumerate(param_range):
+        gap = train_scores_mean[i] - val_scores_mean[i]
+        print(f"   Degree {degree}: Train={train_scores_mean[i]:.3f}, Val={val_scores_mean[i]:.3f}, Gap={gap:.3f}")
+
+# Importa Pipeline
+from sklearn.pipeline import Pipeline
+
+diagnose_with_validation_curve()
+
+
+# 4. METODO: Bias-Variance Decomposition Analysis
+def bias_variance_analysis():
+    """
+    Analizza il trade-off bias-variance usando cross-validation
+    """
+    print("=== BIAS-VARIANCE ANALYSIS ===\n")
+    
+    models_analysis = {
+        'Simple (Degree 1)': logReg,
+        'Complex (Degree 4)': logReg1,
+        'Regularized (Ridge)': logRegRidge
+    }
+    
+    for name, model in models_analysis.items():
+        # Cross-validation con più metriche
+        f1_scores = cross_val_score(model, X_train, y_train, cv=10, scoring='f1')
+        accuracy_scores = cross_val_score(model, X_train, y_train, cv=10, scoring='accuracy')
+        
+        # Statistiche
+        f1_mean = f1_scores.mean()
+        f1_std = f1_scores.std()
+        acc_mean = accuracy_scores.mean()
+        acc_std = accuracy_scores.std()
+        
+        print(f"📈 {name}:")
+        print(f"   F1 Score: {f1_mean:.3f} ± {f1_std:.3f}")
+        print(f"   Accuracy: {acc_mean:.3f} ± {acc_std:.3f}")
+        
+        # Interpretazione Bias-Variance
+        if f1_std > 0.1:
+            print(f"   🔶 HIGH VARIANCE: Modello instabile (std={f1_std:.3f})")
+        elif f1_mean < 0.7:
+            print(f"   🔴 HIGH BIAS: Modello troppo semplice (mean={f1_mean:.3f})")
+        else:
+            print(f"   ✅ BUON TRADE-OFF: Bias e variance bilanciati")
+        print()
+
+bias_variance_analysis()
+
+
+# 5. METODO: Automated Decision System
+def automated_diagnosis_and_recommendation():
+    """
+    Sistema automatico per diagnosticare e raccomandare azioni
+    """
+    print("=== DIAGNOSI AUTOMATICA E RACCOMANDAZIONI ===\n")
+    
+    # Analizza il modello migliore (Degree 1)
+    best_model = logReg
+    model_name = "Logistic Regression (Degree 1)"
+    
+    # Metriche chiave
+    train_score = best_model.score(X_train, y_train)
+    test_score = best_model.score(X_test, y_test)
+    gap = train_score - test_score
+    
+    f1_scores = cross_val_score(best_model, X_train, y_train, cv=5, scoring='f1')
+    f1_mean = f1_scores.mean()
+    f1_std = f1_scores.std()
+    
+    print(f"🔍 ANALISI: {model_name}")
+    print(f"   Train Accuracy: {train_score:.3f}")
+    print(f"   Test Accuracy:  {test_score:.3f}")
+    print(f"   Gap:           {gap:.3f}")
+    print(f"   F1 Mean:       {f1_mean:.3f}")
+    print(f"   F1 Std:        {f1_std:.3f}")
+    print()
+    
+    # Sistema di diagnosi
+    print("🩺 DIAGNOSI:")
+    
+    # Verifica overfitting
+    if gap > 0.15:
+        print("   ⚠️ GRAVE OVERFITTING")
+        recommendations = [
+            "🔹 Aggiungi regolarizzazione (Ridge/Lasso)",
+            "🔹 Riduci complessità del modello", 
+            "🔹 Aumenta dataset con data augmentation",
+            "🔹 Usa dropout se reti neurali"
+        ]
+    elif gap > 0.08:
+        print("   🔶 OVERFITTING MODERATO")
+        recommendations = [
+            "🔹 Prova regolarizzazione leggera",
+            "🔹 Cross-validation più rigorosa",
+            "🔹 Feature selection"
+        ]
+    elif test_score < 0.65:
+        print("   🔴 UNDERFITTING")
+        recommendations = [
+            "🔹 Aumenta complessità del modello",
+            "🔹 Aggiungi più features",
+            "🔹 Feature engineering avanzato",
+            "🔹 Modelli ensemble (Random Forest, XGBoost)"
+        ]
+    elif f1_std > 0.1:
+        print("   🌊 ALTA VARIANZA")
+        recommendations = [
+            "🔹 Stabilizza con ensemble methods",
+            "🔹 Aumenta dimensione dataset",
+            "🔹 Regolarizzazione per stabilità"
+        ]
+    else:
+        print("   ✅ MODELLO BEN BILANCIATO")
+        recommendations = [
+            "🔹 Prova hyperparameter tuning fine",
+            "🔹 Test su diversi algoritmi",
+            "🔹 Considera ensemble per miglioramenti marginali"
+        ]
+    
+    print("\n💡 RACCOMANDAZIONI:")
+    for rec in recommendations:
+        print(f"   {rec}")
+    
+    # Raccomandazioni specifiche per il dataset diabetes
+    print(f"\n🏥 SPECIFICO PER DATASET DIABETES:")
+    print(f"   🔹 Dataset sbilanciato: considera SMOTE/ADASYN")
+    print(f"   🔹 Dominio medico: privilegia recall (non perdere diabetici)")
+    print(f"   🔹 Prova Random Forest (gestisce bene features correlate)")
+    print(f"   🔹 XGBoost con scale_pos_weight per bilanciamento")
+
+automated_diagnosis_and_recommendation()
+
+---
+
+## Diagnostica Overfitting/Underfitting: Guida Completa
+
+### Introduzione
+La diagnostica di overfitting e underfitting è fondamentale per sviluppare modelli di machine learning efficaci. Questa sezione fornisce 5 metodi pratici per identificare e risolvere questi problemi.
+
+### Metodo 1: Confronto Train vs Test Score
+
+Il metodo più semplice per identificare overfitting/underfitting è confrontare le performance su training e test set.
+
+```python
+def diagnose_train_test_gap(models_dict, X_train, X_test, y_train, y_test):
+    """
+    Diagnostica overfitting/underfitting confrontando score di training e test
+    """
+    print("=== DIAGNOSI OVERFITTING/UNDERFITTING ===\n")
+    
+    for name, model in models_dict.items():
+        # Score su training set
+        train_score = model.score(X_train, y_train)
+        
+        # Score su test set
+        test_score = model.score(X_test, y_test)
+        
+        # Differenza
+        gap = train_score - test_score
+        
+        print(f"🔍 {name}:")
+        print(f"   Training Accuracy: {train_score:.3f}")
+        print(f"   Test Accuracy:     {test_score:.3f}")
+        print(f"   Gap (Train-Test):  {gap:.3f}")
+        
+        # Interpretazione automatica
+        if gap > 0.1:
+            print(f"   ⚠️  OVERFITTING! Gap troppo grande")
+        elif gap > 0.05:
+            print(f"   🔶 Possibile overfitting leggero")
+        elif test_score < 0.7:
+            print(f"   🔴 UNDERFITTING! Performance troppo bassa")
+        else:
+            print(f"   ✅ Modello bilanciato")
+        print()
+
+# Esempio di utilizzo
+models_to_diagnose = {
+    'Simple Model': simple_model,
+    'Complex Model': complex_model,
+    'Regularized Model': regularized_model
+}
+
+diagnose_train_test_gap(models_to_diagnose, X_train, X_test, y_train, y_test)
+```
+
+**Criteri di Interpretazione:**
+- **Gap > 0.1**: Overfitting grave
+- **Gap 0.05-0.1**: Overfitting leggero
+- **Test score < 0.7**: Underfitting
+- **Gap < 0.05 e Test > 0.7**: Modello bilanciato
+
+### Metodo 2: Learning Curves
+
+Le learning curves visualizzano come le performance cambiano all'aumentare dei dati di training.
+
+```python
+from sklearn.model_selection import learning_curve
+import matplotlib.pyplot as plt
+
+def plot_learning_curve(model, name, X, y):
+    """
+    Plotta learning curves per diagnosticare overfitting/underfitting
+    """
+    # Calcola learning curves
+    train_sizes, train_scores, val_scores = learning_curve(
+        model, X, y, cv=5, 
+        train_sizes=np.linspace(0.1, 1.0, 10),
+        scoring='f1'
+    )
+    
+    # Calcola medie e deviazioni standard
+    train_scores_mean = np.mean(train_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    val_scores_mean = np.mean(val_scores, axis=1)
+    val_scores_std = np.std(val_scores, axis=1)
+    
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.fill_between(train_sizes, train_scores_mean - train_scores_std,
+                     train_scores_mean + train_scores_std, alpha=0.1, color="blue")
+    plt.fill_between(train_sizes, val_scores_mean - val_scores_std,
+                     val_scores_mean + val_scores_std, alpha=0.1, color="red")
+    
+    plt.plot(train_sizes, train_scores_mean, 'o-', color="blue", label="Training F1")
+    plt.plot(train_sizes, val_scores_mean, 'o-', color="red", label="Validation F1")
+    
+    plt.xlabel('Training Set Size')
+    plt.ylabel('F1 Score')
+    plt.title(f'Learning Curve - {name}')
+    plt.legend(loc="best")
+    plt.grid(True)
+    plt.show()
+    
+    # Interpretazione automatica
+    final_gap = train_scores_mean[-1] - val_scores_mean[-1]
+    print(f"📊 {name} - Learning Curve Analysis:")
+    print(f"   Final Training F1: {train_scores_mean[-1]:.3f}")
+    print(f"   Final Validation F1: {val_scores_mean[-1]:.3f}")
+    print(f"   Final Gap: {final_gap:.3f}")
+    
+    if final_gap > 0.1:
+        print("   ⚠️ OVERFITTING: Grande gap tra training e validation")
+    elif val_scores_mean[-1] < 0.6:
+        print("   🔴 UNDERFITTING: Performance validation troppo bassa")
+    else:
+        print("   ✅ Modello ben bilanciato")
+    print()
+
+# Esempio di utilizzo
+plot_learning_curve(model, "Il Mio Modello", X_train, y_train)
+```
+
+**Interpretazione Learning Curves:**
+- **Curve convergenti**: Modello bilanciato
+- **Gap persistente**: Overfitting
+- **Entrambe le curve basse**: Underfitting
+- **Curve crescenti**: Più dati potrebbero aiutare
+
+### Metodo 3: Validation Curves
+
+Le validation curves aiutano a trovare il valore ottimale degli iperparametri.
+
+```python
+from sklearn.model_selection import validation_curve
+
+def diagnose_with_validation_curve(model, param_name, param_range, X, y):
+    """
+    Usa validation curves per ottimizzare iperparametri
+    """
+    # Calcola validation curve
+    train_scores, val_scores = validation_curve(
+        model, X, y,
+        param_name=param_name, param_range=param_range,
+        cv=5, scoring='f1'
+    )
+    
+    # Calcola medie
+    train_scores_mean = np.mean(train_scores, axis=1)
+    val_scores_mean = np.mean(val_scores, axis=1)
+    train_scores_std = np.std(train_scores, axis=1)
+    val_scores_std = np.std(val_scores, axis=1)
+    
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(param_range, train_scores_mean, 'o-', color='blue', label='Training F1')
+    plt.plot(param_range, val_scores_mean, 'o-', color='red', label='Validation F1')
+    
+    plt.fill_between(param_range, train_scores_mean - train_scores_std,
+                     train_scores_mean + train_scores_std, alpha=0.1, color='blue')
+    plt.fill_between(param_range, val_scores_mean - val_scores_std,
+                     val_scores_mean + val_scores_std, alpha=0.1, color='red')
+    
+    plt.xlabel(param_name)
+    plt.ylabel('F1 Score')
+    plt.title(f'Validation Curve - {param_name} Optimization')
+    plt.legend(loc='best')
+    plt.grid(True)
+    plt.show()
+    
+    # Trova il valore ottimale
+    best_param_idx = np.argmax(val_scores_mean)
+    best_param = param_range[best_param_idx]
+    
+    print(f"🎯 RISULTATI VALIDATION CURVE:")
+    print(f"   {param_name} ottimale: {best_param}")
+    print(f"   F1 validation migliore: {val_scores_mean[best_param_idx]:.3f}")
+    
+    return best_param
+
+# Esempio: ottimizzazione max_depth per Random Forest
+from sklearn.ensemble import RandomForestClassifier
+
+rf = RandomForestClassifier(random_state=42)
+best_depth = diagnose_with_validation_curve(
+    rf, 'max_depth', [3, 5, 7, 10, 15, 20, None], X_train, y_train
+)
+```
+
+### Metodo 4: Bias-Variance Analysis
+
+Analizza il trade-off bias-variance usando cross-validation per identificare instabilità del modello.
+
+```python
+from sklearn.model_selection import cross_val_score
+
+def bias_variance_analysis(models_dict, X, y):
+    """
+    Analizza il trade-off bias-variance usando cross-validation
+    """
+    print("=== BIAS-VARIANCE ANALYSIS ===\n")
+    
+    for name, model in models_dict.items():
+        # Cross-validation con più metriche
+        f1_scores = cross_val_score(model, X, y, cv=10, scoring='f1')
+        accuracy_scores = cross_val_score(model, X, y, cv=10, scoring='accuracy')
+        
+        # Statistiche
+        f1_mean = f1_scores.mean()
+        f1_std = f1_scores.std()
+        acc_mean = accuracy_scores.mean()
+        acc_std = accuracy_scores.std()
+        
+        print(f"📈 {name}:")
+        print(f"   F1 Score: {f1_mean:.3f} ± {f1_std:.3f}")
+        print(f"   Accuracy: {acc_mean:.3f} ± {acc_std:.3f}")
+        
+        # Interpretazione Bias-Variance
+        if f1_std > 0.1:
+            print(f"   🔶 HIGH VARIANCE: Modello instabile (std={f1_std:.3f})")
+        elif f1_mean < 0.7:
+            print(f"   🔴 HIGH BIAS: Modello troppo semplice (mean={f1_mean:.3f})")
+        else:
+            print(f"   ✅ BUON TRADE-OFF: Bias e variance bilanciati")
+        print()
+
+bias_variance_analysis(models_dict, X_train, y_train)
+```
+
+**Interpretazione Bias-Variance:**
+- **Alta Varianza (std > 0.1)**: Overfitting, modello instabile
+- **Alto Bias (mean < 0.7)**: Underfitting, modello troppo semplice
+- **Bilanciato**: Std bassa e mean alta
+
+### Metodo 5: Sistema Automatico di Diagnosi
+
+Sistema completo che combina tutte le metriche e fornisce raccomandazioni automatiche.
+
+```python
+def automated_diagnosis_and_recommendation(model, model_name, X_train, X_test, y_train, y_test):
+    """
+    Sistema automatico per diagnosticare e raccomandare azioni
+    """
+    print("=== DIAGNOSI AUTOMATICA E RACCOMANDAZIONI ===\n")
+    
+    # Metriche chiave
+    train_score = model.score(X_train, y_train)
+    test_score = model.score(X_test, y_test)
+    gap = train_score - test_score
+    
+    f1_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='f1')
+    f1_mean = f1_scores.mean()
+    f1_std = f1_scores.std()
+    
+    print(f"🔍 ANALISI: {model_name}")
+    print(f"   Train Accuracy: {train_score:.3f}")
+    print(f"   Test Accuracy:  {test_score:.3f}")
+    print(f"   Gap:           {gap:.3f}")
+    print(f"   F1 Mean:       {f1_mean:.3f}")
+    print(f"   F1 Std:        {f1_std:.3f}")
+    print()
+    
+    # Sistema di diagnosi
+    print("🩺 DIAGNOSI:")
+    
+    # Verifica overfitting
+    if gap > 0.15:
+        print("   ⚠️ GRAVE OVERFITTING")
+        recommendations = [
+            "🔹 Aggiungi regolarizzazione (Ridge/Lasso)",
+            "🔹 Riduci complessità del modello", 
+            "🔹 Aumenta dataset con data augmentation",
+            "🔹 Usa dropout se reti neurali"
+        ]
+    elif gap > 0.08:
+        print("   🔶 OVERFITTING MODERATO")
+        recommendations = [
+            "🔹 Prova regolarizzazione leggera",
+            "🔹 Cross-validation più rigorosa",
+            "🔹 Feature selection"
+        ]
+    elif test_score < 0.65:
+        print("   🔴 UNDERFITTING")
+        recommendations = [
+            "🔹 Aumenta complessità del modello",
+            "🔹 Aggiungi più features",
+            "🔹 Feature engineering avanzato",
+            "🔹 Modelli ensemble (Random Forest, XGBoost)"
+        ]
+    elif f1_std > 0.1:
+        print("   🌊 ALTA VARIANZA")
+        recommendations = [
+            "🔹 Stabilizza con ensemble methods",
+            "🔹 Aumenta dimensione dataset",
+            "🔹 Regolarizzazione per stabilità"
+        ]
+    else:
+        print("   ✅ MODELLO BEN BILANCIATO")
+        recommendations = [
+            "🔹 Prova hyperparameter tuning fine",
+            "🔹 Test su diversi algoritmi",
+            "🔹 Considera ensemble per miglioramenti marginali"
+        ]
+    
+    print("\n💡 RACCOMANDAZIONI:")
+    for rec in recommendations:
+        print(f"   {rec}")
+    
+    return {
+        'diagnosis': gap,
+        'f1_stability': f1_std,
+        'performance': test_score
+    }
+
+# Esempio di utilizzo
+results = automated_diagnosis_and_recommendation(
+    model, "Il Mio Modello", X_train, X_test, y_train, y_test
+)
+```
+
+### Riassunto Criteri Diagnostici
+
+| Problema | Criteri | Soluzioni |
+|----------|---------|-----------|
+| **Overfitting Grave** | Gap > 0.15 | Regolarizzazione forte, ridurre complessità |
+| **Overfitting Moderato** | Gap 0.08-0.15 | Regolarizzazione leggera, feature selection |
+| **Underfitting** | Test score < 0.65 | Aumentare complessità, più features |
+| **Alta Varianza** | F1 std > 0.1 | Ensemble methods, più dati |
+| **Modello Bilanciato** | Gap < 0.08, Test > 0.7 | Fine tuning, test altri algoritmi |
+
+### Workflow Completo di Diagnosi
+
+```python
+def complete_diagnosis_workflow(model, X_train, X_test, y_train, y_test):
+    """
+    Workflow completo per diagnosticare un modello
+    """
+    print("🔬 INIZIO DIAGNOSI COMPLETA\n")
+    
+    # 1. Train vs Test Gap
+    train_score = model.score(X_train, y_train)
+    test_score = model.score(X_test, y_test)
+    gap = train_score - test_score
+    
+    # 2. Cross-validation stability
+    cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring='f1')
+    cv_mean = cv_scores.mean()
+    cv_std = cv_scores.std()
+    
+    # 3. Rapporto finale
+    print("📊 RAPPORTO DIAGNOSTICO:")
+    print(f"   🎯 Performance: Train={train_score:.3f}, Test={test_score:.3f}")
+    print(f"   📈 Stabilità: CV F1={cv_mean:.3f} ± {cv_std:.3f}")
+    print(f"   ⚖️  Gap: {gap:.3f}")
+    
+    # 4. Raccomandazione finale
+    if gap > 0.1 and cv_std > 0.05:
+        print("\n🚨 AZIONE RICHIESTA: Overfitting + Alta Varianza")
+        print("   → Usa ensemble con regolarizzazione")
+    elif gap > 0.1:
+        print("\n⚠️ AZIONE RICHIESTA: Overfitting")
+        print("   → Aggiungi regolarizzazione")
+    elif test_score < 0.7:
+        print("\n🔴 AZIONE RICHIESTA: Underfitting")
+        print("   → Aumenta complessità modello")
+    elif cv_std > 0.1:
+        print("\n🌊 AZIONE RICHIESTA: Alta Varianza")
+        print("   → Stabilizza con ensemble")
+    else:
+        print("\n✅ MODELLO OTTIMALE: Procedi con deployment")
+
+# Utilizzo
+complete_diagnosis_workflow(my_model, X_train, X_test, y_train, y_test)
+```
+
+Questa sezione ti fornisce tutti gli strumenti necessari per diagnosticare e risolvere problemi di overfitting/underfitting nei tuoi modelli di machine learning. Usa questi metodi sistematicamente per migliorare le performance dei tuoi algoritmi!
+
+
+# OVERSAMPLING E UNDERSMAPLING
+
+## Metodo per identificare l'approccio migliore
+```python
+# Conteggio classi
+class_counts = y_train.value_counts()
+total_samples = len(y_train)
+minority_count = class_counts.min()
+majority_count = class_counts.max()
+
+# Ratio di sbilanciamento
+imbalance_ratio = majority_count / minority_count
+minority_percentage = (minority_count / total_samples) * 100
+```
+
+```python
+SCORE_OVERSAMPLING = 0
+SCORE_UNDERSAMPLING = 0
+
+# Dimensione dataset
+if total_samples < 1000:
+    SCORE_OVERSAMPLING += 3
+elif total_samples > 10000:
+    SCORE_UNDERSAMPLING += 2
+
+# Campioni classe minoritaria
+if minority_count < 100:
+    SCORE_OVERSAMPLING += 3
+elif minority_count > 1000:
+    SCORE_UNDERSAMPLING += 2
+
+# Ratio sbilanciamento
+if imbalance_ratio < 5:
+    SCORE_OVERSAMPLING += 2
+elif imbalance_ratio > 15:
+    SCORE_UNDERSAMPLING += 3
+
+# Risultato
+if SCORE_OVERSAMPLING > SCORE_UNDERSAMPLING:
+    → OVERSAMPLING
+else:
+    → UNDERSAMPLING
+```
+
+## 2. Regole di Decisione Rapide
+PREFERISCI OVERSAMPLING quando:
+
+📏 Dataset piccolo (< 5.000 campioni)
+🔢 Classe minoritaria < 200 campioni
+⚖️ Ratio moderato (2:1 - 8:1)
+🎯 Vuoi massimizzare la recall della classe minoritaria
+💾 Hai memoria/tempo computazionale
+PREFERISCI UNDERSAMPLING quando:
+
+## Dataset enorme (> 50.000 campioni)
+📊 Classe minoritaria > 1.000 campioni
+⚡ Ratio estremo (> 20:1)
+🚀 Vuoi efficienza computazionale
+🎯 Precision è più importante della recall
